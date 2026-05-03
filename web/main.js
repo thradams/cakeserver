@@ -481,6 +481,9 @@ function jumpToLine(lineNumber)
     gutterInner.style.transform = `translateY(-${editor.scrollTop}px)`;
 }
 
+// Auto-load on page start
+window.addEventListener("load", loadFiles);
+
 // Ctrl+S to save
 document.addEventListener("keydown", (e) =>
 {

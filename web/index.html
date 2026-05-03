@@ -27,10 +27,6 @@
                 cursor: pointer;
             }
 
-        #pathInput {
-            width: 140px;
-        }
-
         #fileList {
             min-width: 160px;
             max-width: 260px;
@@ -49,6 +45,7 @@
             white-space: pre-wrap;
             min-height: 60px;
             max-height: 200px;
+            margin: 0;
         }
 
         .editor-wrap {
@@ -56,7 +53,7 @@
             border: 1px solid #333;
             border-radius: 4px;
             overflow: hidden;
-            margin-top: 5px;
+            margin-top: 0;
         }
 
         #gutter {
@@ -228,9 +225,7 @@
 <body>
 
     <div class="toolbar">
-        <input id="pathInput" placeholder="relative path" size="30" />
-        <button onclick="loadFiles()">Load</button>
-
+        <input id="pathInput" type="hidden" value="" />
         <select id="fileList" onchange="onFileSelect()">
             <option value="">-- files --</option>
         </select>
@@ -258,9 +253,7 @@
     </div>
     <div id="editor-resize-handle"></div>
 
-    <div>
-        <pre id="output" class="output"></pre>
-    </div>
+    <pre id="output" class="output"></pre>
 
 
 
