@@ -89,31 +89,32 @@
             box-sizing: border-box;
         }
 
-        /* background layer */
+        /* background layer - scrollable, scrollbar visible */
         .highlight {
             background: #1e1e1e;
             color: #d4d4d4;
-            pointer-events: none;
-            z-index: 1;
-            overflow: hidden;
-            scrollbar-width: none;
+            pointer-events: auto;
+            z-index: 2;
+            overflow: auto;
+            cursor: text;
         }
 
-            .highlight::-webkit-scrollbar {
-                display: none;
-            }
-
-        /* typing layer */
+        /* typing layer - hidden scrollbar, slave to highlight */
         #c-editor {
             background: transparent;
             color: transparent;
             caret-color: white;
-            z-index: 2;
+            z-index: 1;
             resize: none;
             border: none;
             outline: none;
-            overflow-x: hidden;
+            overflow: hidden;
+            scrollbar-width: none;
         }
+
+            #c-editor::-webkit-scrollbar {
+                display: none;
+            }
         /*-------------------------------*/
 
         .kw {
@@ -130,6 +131,36 @@
 
         .num {
             color: #b5cea8;
+        }
+
+        .diag-error {
+            color: #ff5555;
+            background: rgba(255, 50, 50, 0.15);
+            border-left: 3px solid #ff5555;
+            padding: 0 6px;
+            border-radius: 2px;
+            font-style: italic;
+            margin-left: 8px;
+        }
+
+        .diag-warning {
+            color: #f1c40f;
+            background: rgba(241, 196, 15, 0.12);
+            border-left: 3px solid #f1c40f;
+            padding: 0 6px;
+            border-radius: 2px;
+            font-style: italic;
+            margin-left: 8px;
+        }
+
+        .diag-note {
+            color: #9cdcfe;
+            background: rgba(100, 180, 255, 0.10);
+            border-left: 3px solid #9cdcfe;
+            padding: 0 6px;
+            border-radius: 2px;
+            font-style: italic;
+            margin-left: 8px;
         }
     </style>
 </head>

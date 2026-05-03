@@ -2,6 +2,7 @@ const API = "http://localhost:8080";
 
 let currentPath = "";
 let currentFile = "";
+let lastMessages = [];
 
 async function loadFiles()
 {
@@ -61,6 +62,7 @@ async function readFileFromServer(file)
     var s = highlightC(editor.value) + "\n";
 
     var a = parseCompilerLines(parts[1] || "");
+    lastMessages = a;
 
     var h = renderOutput(parts[1] || "");
     document.getElementById("output").innerHTML = h;// = parts[1] || "";
@@ -123,11 +125,14 @@ async function compile()
     const parts = returnedText.split(DELIM);
 
     document.getElementById("c-editor").value = parts[0] || "";
-    highlight.innerHTML = highlightC(editor.value) + "\n";
+    var s = highlightC(editor.value) + "\n";
+    var a = parseCompilerLines(parts[1] || "");
+    lastMessages = a;
+    highlight.innerHTML = appendMessagesToLines(s, a);
     updateGutter();
 
     var h = renderOutput(parts[1] || "");
-    document.getElementById("output").innerHTML = h;// = parts[1] || "";
+    document.getElementById("output").innerHTML = h;
 }
 
 const ANSI_FG = ['#4e4e4e', '#e74c3c', '#2ecc71', '#f1c40f', '#3498db', '#9b59b6', '#1abc9c', '#ecf0f1'];
@@ -250,13 +255,20 @@ function appendMessagesToLines(input, messages)
         let line = lines[i];
         const currentLineNumber = i + 1;
 
-        // process all messages that match this line
         while (
             msgIndex < messages.length &&
             messages[msgIndex].line === currentLineNumber
         )
         {
-            line += " // " + messages[msgIndex].text;
+            const msg = messages[msgIndex];
+            const text = msg.text;
+
+            let cls = 'diag-note';
+            let icon = '● ';
+            if (/error/i.test(text)) { cls = 'diag-error'; icon = '✖ '; }
+            else if (/warning/i.test(text)) { cls = 'diag-warning'; icon = '⚠ '; }
+
+            line += `<span class="${cls}">${icon}${escHtml(text)}</span>`;
             msgIndex++;
         }
 
@@ -265,6 +277,11 @@ function appendMessagesToLines(input, messages)
 
     return result.join('\n');
 }
+function stripAnsi(str)
+{
+    return str.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
 function parseCompilerLines(input)
 {
     const result = [];
@@ -272,58 +289,16 @@ function parseCompilerLines(input)
 
     for (let i = 0; i < lines.length; i++)
     {
-        const line = lines[i];
+        const clean = stripAnsi(lines[i]);
 
-        // find ".c:"
-        const dotC = line.indexOf(".c\x1b[97m:");
-        if (dotC === -1) continue;
+        // match: something.c:LINE:COL: message
+        const m = clean.match(/\w+\.c:(\d+):\d+:\s*(.*)/);
+        if (!m) continue;
 
-        let pos = dotC + 3; // after ".c:"
+        const lineNumber = parseInt(m[1], 10);
+        const message = m[2].trim();
 
-        // parse line number
-        let lineNumber = 0;
-        let hasDigits = false;
-
-        while (pos < line.length)
-        {
-            const ch = line.charCodeAt(pos);
-            if (ch >= 48 && ch <= 57)
-            { // '0'..'9'
-                hasDigits = true;
-                lineNumber = lineNumber * 10 + (ch - 48);
-                pos++;
-            } else
-            {
-                break;
-            }
-        }
-
-        if (!hasDigits) continue;
-        if (line[pos] !== ':') continue;
-
-        pos++; // skip ':'
-
-        // skip column number (digits)
-        while (pos < line.length)
-        {
-            const ch = line.charCodeAt(pos);
-            if (ch >= 48 && ch <= 57)
-            {
-                pos++;
-            } else
-            {
-                break;
-            }
-        }
-
-        if (line[pos] !== ':') continue;
-        pos++; // skip ':'
-
-        // skip space if present
-        if (line[pos] === ' ') pos++;
-
-        // rest is message
-        const message = line.substring(pos);
+        if (!lineNumber || !message) continue;
 
         result.push({
             line: lineNumber,
@@ -371,7 +346,8 @@ function updateGutter()
 
 function updateHighlight()
 {
-    highlight.innerHTML = highlightC(editor.value);
+    var s = highlightC(editor.value) + "\n";
+    highlight.innerHTML = appendMessagesToLines(s, lastMessages);
     updateGutter();
 }
 
@@ -381,29 +357,54 @@ editor.addEventListener("input", updateHighlight);
 // initialize on load
 updateHighlight();
 
-// sync scroll
-editor.addEventListener("scroll", () =>
+// highlight scroll drives textarea and gutter
+highlight.addEventListener("scroll", () =>
 {
-    highlight.scrollTop = editor.scrollTop;
-    highlight.scrollLeft = editor.scrollLeft;
-    gutterInner.style.transform = `translateY(-${editor.scrollTop}px)`;
+    editor.scrollTop = highlight.scrollTop;
+    editor.scrollLeft = highlight.scrollLeft;
+    gutterInner.style.transform = `translateY(-${highlight.scrollTop}px)`;
+});
+
+// clicking on highlight focuses the textarea for typing
+highlight.addEventListener("click", () =>
+{
+    editor.focus();
 });
 
 // double-click output line to jump to editor line
-document.getElementById("output").addEventListener("dblclick", () =>
+document.getElementById("output").addEventListener("dblclick", (e) =>
 {
-    const selection = window.getSelection();
-    if (!selection) return;
+    // get the full text line that was clicked using mouse position
+    const output = document.getElementById("output");
+    const fullText = output.innerText;
+    const lines = fullText.split('\n');
 
-    // get the text of the line that was double-clicked
-    let node = selection.anchorNode;
-    if (!node) return;
+    // find which line was clicked by using caret position from mouse coords
+    let clickedLine = null;
 
-    // walk up to get full line text
-    const lineText = node.textContent || "";
+    const range = document.caretRangeFromPoint
+        ? document.caretRangeFromPoint(e.clientX, e.clientY)
+        : null;
 
-    // match pattern: anything ending in .c:LINE:COL: or .c:LINE:
-    const match = lineText.match(/:(\d+):/);
+    if (range)
+    {
+        // count newlines before the caret offset to find the line index
+        const pre = document.createRange();
+        pre.setStart(output, 0);
+        pre.setEnd(range.startContainer, range.startOffset);
+        const textBefore = pre.toString();
+        const lineIndex = textBefore.split('\n').length - 1;
+        clickedLine = lines[lineIndex] || "";
+    }
+    else
+    {
+        // fallback: use selection
+        const sel = window.getSelection();
+        const node = sel && sel.anchorNode;
+        clickedLine = node ? (node.textContent || "") : "";
+    }
+
+    const match = clickedLine.match(/\.c:(\d+):/);
     if (!match) return;
 
     const targetLine = parseInt(match[1], 10);
@@ -428,13 +429,13 @@ function jumpToLine(lineNumber)
     editor.focus();
     editor.setSelectionRange(offset, offset + lines[lineNumber - 1].length);
 
-    // scroll editor so the line is vertically centered
-    const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
-    const editorHeight = editor.clientHeight;
-    const targetScrollTop = (lineNumber - 1) * lineHeight - editorHeight / 2 + lineHeight / 2;
-    editor.scrollTop = Math.max(0, targetScrollTop);
+    // scroll highlight so the line is vertically centered
+    const lineHeight = parseFloat(getComputedStyle(highlight).lineHeight);
+    const viewHeight = highlight.clientHeight;
+    const targetScrollTop = (lineNumber - 1) * lineHeight - viewHeight / 2 + lineHeight / 2;
+    highlight.scrollTop = Math.max(0, targetScrollTop);
 
-    // sync highlight and gutter
-    highlight.scrollTop = editor.scrollTop;
-    gutterInner.style.transform = `translateY(-${editor.scrollTop}px)`;
+    // sync textarea and gutter
+    editor.scrollTop = highlight.scrollTop;
+    gutterInner.style.transform = `translateY(-${highlight.scrollTop}px)`;
 }
