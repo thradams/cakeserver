@@ -6,14 +6,25 @@
     <style>
         body {
             font-family: sans-serif;
-            margin: 8px 12px;
+            margin: 0;
+            padding: 8px 12px;
+            padding-top: 44px; /* height of fixed toolbar */
         }
 
         .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
             display: flex;
             gap: 5px;
             align-items: center;
-            padding: 4px 0;
+            padding: 4px 12px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ccc;
+            height: 36px;
+            box-sizing: border-box;
         }
 
             .toolbar input, .toolbar select, .toolbar button {
