@@ -244,6 +244,14 @@
         <!-- ✅ Save moved to top -->
         <button onclick="saveFile()" id="saveBtn" disabled="">Save</button>
         <button onclick="compile()" id="saveCompileBtn">Save &amp; Compile</button>
+
+        <span style="margin-left:6px; border-left:1px solid #bbb; padding-left:6px; display:flex; align-items:center; gap:4px;">
+            <button onclick="diagFirst()" title="First diagnostic">&#9651;&#9651; First</button>
+            <button onclick="diagPrev()" title="Previous diagnostic (Shift+F8)">&#9650; Prev</button>
+            <span id="diagCounter" style="font-size:11px; color:#555; min-width:32px; text-align:center;"></span>
+            <button onclick="diagNext()" title="Next diagnostic (F8)">Next &#9660;</button>
+            <button onclick="diagLast()" title="Last diagnostic">Last &#9661;&#9661;</button>
+        </span>
     </div>
 
     <div class="editor-wrap">

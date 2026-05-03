@@ -2,7 +2,61 @@ const API = "http://localhost:8080";
 
 let currentPath = "";
 let currentFile = "";
-let lastMessages = [];
+let lastMessages = [];   // list of { line, text } — rebuilt whenever a file loads or compiles
+let diagIndex = -1;      // index into lastMessages for Prev/Next navigation
+
+function setDiagMessages(messages)
+{
+    lastMessages = messages;
+    diagIndex = messages.length > 0 ? 0 : -1;
+    updateDiagCounter();
+}
+
+function updateDiagCounter()
+{
+    const counter = document.getElementById("diagCounter");
+    if (!counter) return;
+    if (lastMessages.length === 0)
+    {
+        counter.textContent = "";
+    }
+    else
+    {
+        counter.textContent = `${diagIndex + 1}/${lastMessages.length}`;
+    }
+}
+
+function diagNext()
+{
+    if (lastMessages.length === 0) return;
+    diagIndex = (diagIndex + 1) % lastMessages.length;
+    updateDiagCounter();
+    jumpToLine(lastMessages[diagIndex].line);
+}
+
+function diagPrev()
+{
+    if (lastMessages.length === 0) return;
+    diagIndex = (diagIndex - 1 + lastMessages.length) % lastMessages.length;
+    updateDiagCounter();
+    jumpToLine(lastMessages[diagIndex].line);
+}
+
+function diagFirst()
+{
+    if (lastMessages.length === 0) return;
+    diagIndex = 0;
+    updateDiagCounter();
+    jumpToLine(lastMessages[diagIndex].line);
+}
+
+function diagLast()
+{
+    if (lastMessages.length === 0) return;
+    diagIndex = lastMessages.length - 1;
+    updateDiagCounter();
+    jumpToLine(lastMessages[diagIndex].line);
+}
 
 async function loadFiles()
 {
@@ -62,10 +116,10 @@ async function readFileFromServer(file)
     var s = highlightC(editor.value) + "\n";
 
     var a = parseCompilerLines(parts[1] || "");
-    lastMessages = a;
+    setDiagMessages(a);
 
     var h = renderOutput(parts[1] || "");
-    document.getElementById("output").innerHTML = h;// = parts[1] || "";
+    document.getElementById("output").innerHTML = h;
 
     highlight.innerHTML = appendMessagesToLines(s, a);
     updateGutter();
@@ -120,7 +174,7 @@ async function compile()
     document.getElementById("c-editor").value = parts[0] || "";
     var s = highlightC(editor.value) + "\n";
     var a = parseCompilerLines(parts[1] || "");
-    lastMessages = a;
+    setDiagMessages(a);
     highlight.innerHTML = appendMessagesToLines(s, a);
     updateGutter();
 
@@ -484,13 +538,18 @@ function jumpToLine(lineNumber)
 // Auto-load on page start
 window.addEventListener("load", loadFiles);
 
-// Ctrl+S to save
+// Ctrl+S to save; F8 / Shift+F8 for diag navigation
 document.addEventListener("keydown", (e) =>
 {
     if (e.ctrlKey && e.key === 's')
     {
         e.preventDefault();
         saveFile();
+    }
+    else if (e.key === 'F8')
+    {
+        e.preventDefault();
+        if (e.shiftKey) diagPrev(); else diagNext();
     }
 });
 const resizeHandle = document.getElementById("editor-resize-handle");
