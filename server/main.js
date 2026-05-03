@@ -58,6 +58,7 @@ async function readFileFromServer(file)
     const parts = text.split(DELIM);
 
     document.getElementById("c-editor").value = parts[0] || "";
+    highlight.innerHTML = highlightC(editor.value) + "\n";
 
     var h = renderOutput(parts[1] || "");
     document.getElementById("output").innerHTML = h;// = parts[1] || "";
@@ -187,3 +188,42 @@ function renderOutput(text)
     return html;
     //document.getElementById('output').innerHTML = html;
 }
+
+function highlightC(code)
+{
+    code = escHtml(code);
+
+    // strings
+    code = code.replace(/("(?:\\.|[^"])*")/g, '<span class="str">$1</span>');
+
+    // comments
+    code = code.replace(/(\/\/.*)/g, '<span class="com">$1</span>');
+    code = code.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="com">$1</span>');
+
+    // keywords
+    const kw = /\b(int|char|return|if|else|for|while|void|struct|typedef|const|static)\b/g;
+    code = code.replace(kw, '<span class="kw">$1</span>');
+
+    // numbers
+    code = code.replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
+
+    return code;
+}
+
+const editor = document.getElementById("c-editor");
+const highlight = document.getElementById("highlight");
+
+function updateHighlight()
+{
+    highlight.innerHTML = highlightC(editor.value);
+}
+
+// update on typing
+editor.addEventListener("input", updateHighlight);
+
+// sync scroll
+editor.addEventListener("scroll", () =>
+{
+    highlight.scrollTop = editor.scrollTop;
+    highlight.scrollLeft = editor.scrollLeft;
+});
