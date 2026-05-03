@@ -8,3 +8,6 @@
 /Debug
 /server/Debug
 /server/output.txt
+/packages/Microsoft.TypeScript.MSBuild.4.8.3
+/web/bin
+/web/obj/Debug
