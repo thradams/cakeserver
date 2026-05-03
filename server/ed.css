@@ -1,0 +1,126 @@
+.app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    font-family: monospace;
+}
+
+/* =======================
+   EDITOR
+======================= */
+.editor-pane {
+    position: relative;
+    height: 65%;
+    background: #1e1e1e;
+    border-bottom: 1px solid #333;
+}
+
+/* LINE NUMBERS */
+.gutter {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 44px;
+    height: 100%;
+    padding: 12px 6px;
+    box-sizing: border-box;
+    font: 14px/1.4 monospace;
+    text-align: right;
+    white-space: pre;
+    color: #666;
+    background: #1e1e1e;
+    border-right: 1px solid #2a2a2a;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* VIEW */
+.editor-view {
+    position: absolute;
+    top: 0;
+    left: 44px;
+    right: 0;
+    bottom: 0;
+}
+
+/* SYNTAX LAYER */
+.highlight {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 12px;
+    font: 14px/1.4 monospace;
+    white-space: pre;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* =======================
+   ONLY THIS EDITOR TEXTAREA
+   (SCOPED, NOT GLOBAL)
+======================= */
+#c-editor {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 12px;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: auto;
+    color: transparent;
+    caret-color: #fff;
+    font: 14px/1.4 monospace;
+    line-height: 1.4;
+    white-space: pre;
+    z-index: 2;
+}
+
+/* =======================
+   OUTPUT
+======================= */
+.output-pane {
+    height: 35%;
+    background: #111;
+    color: #ddd;
+    display: flex;
+    flex-direction: column;
+}
+
+.output-title {
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #888;
+    border-bottom: 1px solid #222;
+}
+
+.output {
+    margin: 0;
+    padding: 10px;
+    overflow: auto;
+    white-space: pre;
+}
+
+/* =======================
+   SYNTAX COLORS
+======================= */
+.kw {
+    color: #569cd6;
+}
+
+.str {
+    color: #ce9178;
+}
+
+.com {
+    color: #6a9955;
+}
+
+.num {
+    color: #b5cea8;
+}
+
+.type {
+    color: #4ec9b0;
+}
