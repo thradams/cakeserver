@@ -42,13 +42,9 @@ typedef int SocketFd;
 #define MAX_PATH_LEN 2048   /* max filesystem path length */
 #define MAX_CMD_LEN  (MAX_PATH_LEN + 32)
 
-#ifdef _WIN32
-const char* BASE_DIR = "C:\\Users\\thiag\\source\\repos\\serverw\\serverw";
-#else
-const char* BASE_DIR = "/tmp/serverw";   /* adjust as needed */
-#endif
 
-const char BASE_DIR2[] = "C:\\Users\\thiag\\source\\repos\\cake_private\\src\\";
+char BASE_DIR[512];
+char BASE_DIR2[512];
 
 /* ══════════════════════════════════════════════════════════════════════
    dynbuf  –  a simple growable byte buffer
@@ -247,7 +243,7 @@ static void handle_list(SocketFd client, const char* query)
         send_str(client, "text/plain", "Invalid path");
         return;
     }
-    
+
     DynBuf json;
     if (db_init(&json, 256) != 0) return;
     db_appends(&json, "[");
@@ -515,11 +511,53 @@ static int recv_all(SocketFd client, DynBuf* buf)
     return 0;
 }
 
+
+#if defined(_WIN32)
+
+char *get_exe_path(char *buffer, size_t size)
+{
+    DWORD len = GetModuleFileNameA(NULL, buffer, (DWORD)size);
+    if (len == 0 || len == size)
+        return NULL;
+    return buffer;
+}
+
+#elif defined(__linux__)
+#include <unistd.h>
+
+char *get_exe_path(char *buffer, size_t size)
+{
+    ssize_t len = readlink("/proc/self/exe", buffer, size - 1);
+    if (len == -1)
+        return NULL;
+
+    buffer[len] = '\0';
+    return buffer;
+}
+
+#else
+#error "Unsupported platform"
+#endif
+
 /* ══════════════════════════════════════════════════════════════════════
    main
    ══════════════════════════════════════════════════════════════════════ */
-int main(void)
+
+int main(int argc, char* argv[])
 {
+    if (argc <= 1)
+    {
+        printf("usage: server <path>\n");
+        return 1;
+    }
+
+    get_exe_path(BASE_DIR, sizeof BASE_DIR);
+    BASE_DIR[strlen(BASE_DIR) - sizeof("Debug\\server.exe")] = 0;
+
+    //debug
+    strncpy(BASE_DIR2, argv[1], sizeof(BASE_DIR2) - 1);
+    BASE_DIR2[sizeof(BASE_DIR2) - 1] = '\0'; // ensure null-termination
+    
 #ifdef _WIN32
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
