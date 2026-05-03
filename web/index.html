@@ -95,7 +95,13 @@
             color: #d4d4d4;
             pointer-events: none;
             z-index: 1;
+            overflow: hidden;
+            scrollbar-width: none;
         }
+
+            .highlight::-webkit-scrollbar {
+                display: none;
+            }
 
         /* typing layer */
         #c-editor {
@@ -106,6 +112,7 @@
             resize: none;
             border: none;
             outline: none;
+            overflow-x: hidden;
         }
         /*-------------------------------*/
 
