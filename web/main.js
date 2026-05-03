@@ -62,11 +62,11 @@ async function readFileFromServer(file)
 
     var a = parseCompilerLines(parts[1] || "");
 
-
     var h = renderOutput(parts[1] || "");
     document.getElementById("output").innerHTML = h;// = parts[1] || "";
 
     highlight.innerHTML = appendMessagesToLines(s, a);
+    updateGutter();
 
 }
 
@@ -124,6 +124,7 @@ async function compile()
 
     document.getElementById("c-editor").value = parts[0] || "";
     highlight.innerHTML = highlightC(editor.value) + "\n";
+    updateGutter();
 
     var h = renderOutput(parts[1] || "");
     document.getElementById("output").innerHTML = h;// = parts[1] || "";
@@ -357,18 +358,33 @@ function highlightC(code)
 
 const editor = document.getElementById("c-editor");
 const highlight = document.getElementById("highlight");
+const gutter = document.getElementById("gutter");
+const gutterInner = document.getElementById("gutter-inner");
+
+function updateGutter()
+{
+    const lines = editor.value.split("\n").length;
+    const nums = [];
+    for (let i = 1; i <= lines; i++) nums.push(i);
+    gutterInner.textContent = nums.join("\n");
+}
 
 function updateHighlight()
 {
     highlight.innerHTML = highlightC(editor.value);
+    updateGutter();
 }
 
 // update on typing
 editor.addEventListener("input", updateHighlight);
+
+// initialize on load
+updateHighlight();
 
 // sync scroll
 editor.addEventListener("scroll", () =>
 {
     highlight.scrollTop = editor.scrollTop;
     highlight.scrollLeft = editor.scrollLeft;
+    gutterInner.style.transform = `translateY(-${editor.scrollTop}px)`;
 });

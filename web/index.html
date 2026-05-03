@@ -1,138 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8">
-			<title>File Browser</title>
-			<style>
-				body { font-family: sans-serif; margin: 20px; }
+<head>
+    <meta charset="UTF-8">
+    <title>File Browser</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
 
-				.toolbar {
-				display: flex;
-				gap: 10px;
-				align-items: center;
-				}
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
 
-				#fileList {
-				min-width: 250px;
-				}
+        #fileList {
+            min-width: 250px;
+        }
 
-				textarea {
-				width: 100%;
-				height: 300px;
-				margin-top: 20px;
-				}
 
-				#output {
-				background: #1e1e1e;
-				color: #d4d4d4;
-				padding: 12px;
-				border-radius: 4px;
-				font-family: monospace;
-				font-size: 13px;
-				overflow-x: auto;
-				white-space: pre-wrap;
-				min-height: 60px;
-				}
+        #output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            min-height: 60px;
+        }
 
-                .editor-view {
-                    position: relative;
-                    height: 300px;
-                }
+        .editor-wrap {
+            display: flex;
+            border: 1px solid #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
 
-                /* BOTH must match exactly */
-                .highlight,
-                #c-editor {
-                    color: transparent; /* hide text */
-                    caret-color: white; /* keep cursor visible */
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    margin: 0;
-                    padding: 10px;
-                    font-family: monospace;
-                    font-size: 14px;
-                    line-height: 1.4;
-                    white-space: pre;
-                    overflow: auto;
-                    box-sizing: border-box;
-                }
+        #gutter {
+            background: #1e1e1e;
+            border-right: 1px solid #333;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+            width: 48px;
+        }
 
-                /* background layer */
-                .highlight {
-                    background: #1e1e1e;
-                    color: #d4d4d4;
-                    pointer-events: none;
-                    z-index: 1;
-                }
+        #gutter-inner {
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 10px 8px 10px 4px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #6e7681;
+            text-align: right;
+            white-space: pre;
+            user-select: none;
+        }
 
-                /* typing layer */
-                #c-editor {
-                    background: transparent;
-                    color: transparent;
-                    caret-color: white;
-                    z-index: 2;
-                    resize: none;
-                }
-                /*-------------------------------*/
+        .editor-view {
+            position: relative;
+            height: 300px;
+            flex: 1;
+        }
 
-                .kw {
-                    color: #569cd6;
-                }
+        /* BOTH must match exactly */
+        .highlight,
+        #c-editor {
+            color: transparent; /* hide text */
+            caret-color: white; /* keep cursor visible */
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            white-space: pre;
+            overflow: auto;
+            box-sizing: border-box;
+        }
 
-                .str {
-                    color: #ce9178;
-                }
+        /* background layer */
+        .highlight {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            pointer-events: none;
+            z-index: 1;
+        }
 
-                .com {
-                    color: #6a9955;
-                }
+        /* typing layer */
+        #c-editor {
+            background: transparent;
+            color: transparent;
+            caret-color: white;
+            z-index: 2;
+            resize: none;
+            border: none;
+            outline: none;
+        }
+        /*-------------------------------*/
 
-                .num {
-                    color: #b5cea8;
-                }
+        .kw {
+            color: #569cd6;
+        }
 
-				
-			</style>
-		</head>
-	<body>
+        .str {
+            color: #ce9178;
+        }
 
-		<div class="toolbar">
-			<input id="pathInput" placeholder="relative path" size="30"/>
-				<button onclick="loadFiles()">Load</button>
+        .com {
+            color: #6a9955;
+        }
 
-				<select id="fileList" onchange="onFileSelect()">
-					<option value="">-- files --</option>
-				</select>
+        .num {
+            color: #b5cea8;
+        }
+    </style>
+</head>
+<body>
 
-				<!-- ✅ Save moved to top -->
-				<button onclick="saveFile()" id="saveBtn" disabled="">Save</button>
-				<button onclick="compile()" id="saveCompileBtn">Save &amp; Compile</button>
-			</div>
+    <div class="toolbar">
+        <input id="pathInput" placeholder="relative path" size="30" />
+        <button onclick="loadFiles()">Load</button>
 
-		 <div >
+        <select id="fileList" onchange="onFileSelect()">
+            <option value="">-- files --</option>
+        </select>
 
-      <div class="gutter" id="gutter"></div>
+        <!-- ✅ Save moved to top -->
+        <button onclick="saveFile()" id="saveBtn" disabled="">Save</button>
+        <button onclick="compile()" id="saveCompileBtn">Save &amp; Compile</button>
+    </div>
 
-      <div class="editor-view">
-        <pre id="highlight" class="highlight"></pre>
+    <div class="editor-wrap">
 
-        <!-- ONLY THIS TEXTAREA IS THE EDITOR -->
-        <textarea id="c-editor"></textarea>
-      </div>
+        <div id="gutter"><div id="gutter-inner">1</div></div>
+
+        <div class="editor-view">
+            <pre id="highlight" class="highlight"></pre>
+
+            <!-- ONLY THIS TEXTAREA IS THE EDITOR -->
+            <textarea id="c-editor"></textarea>
+        </div>
 
     </div>
 
     <div>
-      <div class="output-title">Output</div>
-      <pre id="output" class="output"></pre>
+        <div class="output-title">Output</div>
+        <pre id="output" class="output"></pre>
     </div>
 
-    
-	
-		<script src="main.js"></script>
 
-		
-	</body>
+
+    <script src="main.js"></script>
+
+
+</body>
 </html>
