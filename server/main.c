@@ -3,7 +3,11 @@
 
 /* ── Windows preamble ────────────────────────────────────────────────── */
 #ifdef _WIN32
+
+#ifndef _CRT_SECURE_NO_WARNINGS
 #  define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #  include <winsock2.h>
 #  include <windows.h>
 #  pragma comment(lib, "Ws2_32.lib")
@@ -43,6 +47,8 @@ const char* BASE_DIR = "C:\\Users\\thiag\\source\\repos\\serverw\\serverw";
 #else
 const char* BASE_DIR = "/tmp/serverw";   /* adjust as needed */
 #endif
+
+const char BASE_DIR2[] = "C:\\Users\\thiag\\source\\repos\\cake_private\\src\\";
 
 /* ══════════════════════════════════════════════════════════════════════
    dynbuf  –  a simple growable byte buffer
@@ -241,7 +247,7 @@ static void handle_list(SocketFd client, const char* query)
         send_str(client, "text/plain", "Invalid path");
         return;
     }
-
+    
     DynBuf json;
     if (db_init(&json, 256) != 0) return;
     db_appends(&json, "[");
@@ -250,9 +256,9 @@ static void handle_list(SocketFd client, const char* query)
 #ifdef _WIN32
     char search[MAX_PATH_LEN];
     if (rel[0])
-        snprintf(search, sizeof(search), "%s\\%s\\*", BASE_DIR, rel);
+        snprintf(search, sizeof(search), "%s\\%s\\*", BASE_DIR2, rel);
     else
-        snprintf(search, sizeof(search), "%s\\*", BASE_DIR);
+        snprintf(search, sizeof(search), "%s\\*", BASE_DIR2);
 
     WIN32_FIND_DATAA fd;
     HANDLE h = FindFirstFileA(search, &fd);
@@ -279,9 +285,9 @@ static void handle_list(SocketFd client, const char* query)
 #else
     char dirpath[MAX_PATH_LEN];
     if (rel[0])
-        snprintf(dirpath, sizeof(dirpath), "%s/%s", BASE_DIR, rel);
+        snprintf(dirpath, sizeof(dirpath), "%s/%s", BASE_DIR2, rel);
     else
-        snprintf(dirpath, sizeof(dirpath), "%s", BASE_DIR);
+        snprintf(dirpath, sizeof(dirpath), "%s", BASE_DIR2);
 
     DIR* dir = opendir(dirpath);
 
@@ -406,7 +412,7 @@ static void handle_read(SocketFd client, const char* query)
 
     char full[MAX_PATH_LEN];
     snprintf(full, sizeof(full), "%s" PATH_SEP "%s" PATH_SEP "%s",
-        BASE_DIR, rel, file);
+        BASE_DIR2, rel, file);
 
     compile_and_respond(client, full);
 }
@@ -429,7 +435,7 @@ static void handle_save(SocketFd client, const char* body, size_t body_len)
 
     char full[MAX_PATH_LEN];
     snprintf(full, sizeof(full), "%s" PATH_SEP "%s" PATH_SEP "%s",
-        BASE_DIR, path, file);
+        BASE_DIR2, path, file);
 
     FILE* f = fopen(full, "wb");
     if (!f)
@@ -462,7 +468,7 @@ static void handle_compile(SocketFd client, const char* body, size_t body_len)
 
     char full[MAX_PATH_LEN];
     snprintf(full, sizeof(full), "%s" PATH_SEP "%s" PATH_SEP "%s",
-        BASE_DIR, path, file);
+        BASE_DIR2, path, file);
 
     FILE* f = fopen(full, "wb");
     if (!f)
