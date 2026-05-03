@@ -58,10 +58,16 @@ async function readFileFromServer(file)
     const parts = text.split(DELIM);
 
     document.getElementById("c-editor").value = parts[0] || "";
-    highlight.innerHTML = highlightC(editor.value) + "\n";
+    var s = highlightC(editor.value) + "\n";
+
+    var a = parseCompilerLines(parts[1] || "");
+
 
     var h = renderOutput(parts[1] || "");
     document.getElementById("output").innerHTML = h;// = parts[1] || "";
+
+    highlight.innerHTML = appendMessagesToLines(s, a);
+
 }
 
 async function loadFile(path, file)
@@ -193,10 +199,144 @@ function renderOutput(text)
     return html;
     //document.getElementById('output').innerHTML = html;
 }
+function appendToLine(text, targetLine, htmlToAppend)
+{
+    let line = 1;
+    let i = 0;
+    let start = 0;
+
+    // find start of target line
+    while (i < text.length)
+    {
+        if (line === targetLine)
+        {
+            start = i;
+            break;
+        }
+
+        if (text[i] === '\n')
+        {
+            line++;
+        }
+        i++;
+    }
+
+    // if line not found, return original
+    if (line !== targetLine) return text;
+
+    // find end of the line
+    let end = start;
+    while (end < text.length && text[end] !== '\n')
+    {
+        end++;
+    }
+
+    // split and insert
+    const before = text.slice(0, end);
+    const after = text.slice(end);
+
+    return before + htmlToAppend + after;
+}
+function appendMessagesToLines(input, messages)
+{
+    const lines = input.split('\n');
+    const result = [];
+
+    let msgIndex = 0;
+
+    for (let i = 0; i < lines.length; i++)
+    {
+        let line = lines[i];
+        const currentLineNumber = i + 1;
+
+        // process all messages that match this line
+        while (
+            msgIndex < messages.length &&
+            messages[msgIndex].line === currentLineNumber
+        )
+        {
+            line += " // " + messages[msgIndex].text;
+            msgIndex++;
+        }
+
+        result.push(line);
+    }
+
+    return result.join('\n');
+}
+function parseCompilerLines(input)
+{
+    const result = [];
+    const lines = input.split('\n');
+
+    for (let i = 0; i < lines.length; i++)
+    {
+        const line = lines[i];
+
+        // find ".c:"
+        const dotC = line.indexOf(".c\x1b[97m:");
+        if (dotC === -1) continue;
+
+        let pos = dotC + 3; // after ".c:"
+
+        // parse line number
+        let lineNumber = 0;
+        let hasDigits = false;
+
+        while (pos < line.length)
+        {
+            const ch = line.charCodeAt(pos);
+            if (ch >= 48 && ch <= 57)
+            { // '0'..'9'
+                hasDigits = true;
+                lineNumber = lineNumber * 10 + (ch - 48);
+                pos++;
+            } else
+            {
+                break;
+            }
+        }
+
+        if (!hasDigits) continue;
+        if (line[pos] !== ':') continue;
+
+        pos++; // skip ':'
+
+        // skip column number (digits)
+        while (pos < line.length)
+        {
+            const ch = line.charCodeAt(pos);
+            if (ch >= 48 && ch <= 57)
+            {
+                pos++;
+            } else
+            {
+                break;
+            }
+        }
+
+        if (line[pos] !== ':') continue;
+        pos++; // skip ':'
+
+        // skip space if present
+        if (line[pos] === ' ') pos++;
+
+        // rest is message
+        const message = line.substring(pos);
+
+        result.push({
+            line: lineNumber,
+            text: message
+        });
+    }
+
+    return result;
+}
 
 function highlightC(code)
 {
     code = escHtml(code);
+
 
     // strings
     code = code.replace(/("(?:\\.|[^"])*")/g, '<span class="str">$1</span>');
@@ -211,7 +351,7 @@ function highlightC(code)
 
     // numbers
     code = code.replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
-
+    //code = appendToLine(code, 10, "<span style=\"background-color:yellow\">TEST</span>");
     return code;
 }
 
