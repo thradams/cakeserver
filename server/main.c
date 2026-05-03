@@ -208,9 +208,9 @@ static void handle_static(SocketFd client, const char* url)
     char path[MAX_PATH_LEN];
 
     if (strcmp(url, "/") == 0)
-        strcpy(path, "index.html");
-    else
-        snprintf(path, sizeof(path), ".%s", url);
+        url = PATH_SEP "index.html";
+
+    snprintf(path, sizeof(path), "%s%s", BASE_DIR, url);
 
     if (strstr(path, ".."))
     {
@@ -414,7 +414,7 @@ static void handle_read(SocketFd client, const char* query)
 }
 
 
-size_t first_line_copy(const char *src, char *dst, size_t dst_size)
+size_t first_line_copy(const char* src, char* dst, size_t dst_size)
 {
     size_t i = 0;
 
@@ -452,10 +452,10 @@ static void handle_save(SocketFd client, const char* body, size_t body_len)
     size_t sz = first_line_copy(body, file, sizeof file);
     content = body + sz + 1;
     content_len = strlen(content);
-    
+
     char full[MAX_PATH_LEN];
     snprintf(full, sizeof(full), "%s" PATH_SEP "%s",
-        BASE_DIR2,  file);
+        BASE_DIR2, file);
 
     FILE* f = fopen(full, "wb");
     if (!f)
@@ -476,7 +476,7 @@ static void handle_save(SocketFd client, const char* body, size_t body_len)
    ══════════════════════════════════════════════════════════════════════ */
 static void handle_compile(SocketFd client, const char* body, size_t body_len)
 {
-     char file[512] = "";
+    char file[512] = "";
     const char* content; size_t content_len;
     size_t sz = first_line_copy(body, file, sizeof file);
     content = body + sz + 1;
@@ -535,7 +535,7 @@ static int recv_all(SocketFd client, DynBuf* buf)
 
 #if defined(_WIN32)
 
-char *get_exe_path(char *buffer, size_t size)
+char* get_exe_path(char* buffer, size_t size)
 {
     DWORD len = GetModuleFileNameA(NULL, buffer, (DWORD)size);
     if (len == 0 || len == size)
@@ -546,7 +546,7 @@ char *get_exe_path(char *buffer, size_t size)
 #elif defined(__linux__)
 #include <unistd.h>
 
-char *get_exe_path(char *buffer, size_t size)
+char* get_exe_path(char* buffer, size_t size)
 {
     ssize_t len = readlink("/proc/self/exe", buffer, size - 1);
     if (len == -1)
@@ -574,11 +574,12 @@ int main(int argc, char* argv[])
 
     get_exe_path(BASE_DIR, sizeof BASE_DIR);
     BASE_DIR[strlen(BASE_DIR) - sizeof("Debug\\server.exe")] = 0;
+    strcat(BASE_DIR, "\\web");
 
     //debug
     strncpy(BASE_DIR2, argv[1], sizeof(BASE_DIR2) - 1);
     BASE_DIR2[sizeof(BASE_DIR2) - 1] = '\0'; // ensure null-termination
-    
+
 #ifdef _WIN32
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -649,7 +650,11 @@ int main(int argc, char* argv[])
             else
                 send_str(client, "text/plain", "Not found");
         }
+        else
+        {
+            send_str(client, "text/plain", "Not found");
 
+        }
         db_free(&req);
         CLOSE_SOCKET(client);
     }

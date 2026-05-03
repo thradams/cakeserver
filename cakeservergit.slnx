@@ -1,7 +1,9 @@
 <Solution>
   <Configurations>
+    <Platform Name="Any CPU" />
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
   <Project Path="server/server.vcxproj" Id="e9d49b7f-6ce4-43ed-892e-1fb2cbc51ca0" />
+  <Project Path="web/web.csproj" Id="2574f603-4b6c-4a30-bfdd-e3bc09eedfdf" />
 </Solution>
