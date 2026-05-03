@@ -388,3 +388,53 @@ editor.addEventListener("scroll", () =>
     highlight.scrollLeft = editor.scrollLeft;
     gutterInner.style.transform = `translateY(-${editor.scrollTop}px)`;
 });
+
+// double-click output line to jump to editor line
+document.getElementById("output").addEventListener("dblclick", () =>
+{
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    // get the text of the line that was double-clicked
+    let node = selection.anchorNode;
+    if (!node) return;
+
+    // walk up to get full line text
+    const lineText = node.textContent || "";
+
+    // match pattern: anything ending in .c:LINE:COL: or .c:LINE:
+    const match = lineText.match(/:(\d+):/);
+    if (!match) return;
+
+    const targetLine = parseInt(match[1], 10);
+    if (!targetLine || targetLine < 1) return;
+
+    jumpToLine(targetLine);
+});
+
+function jumpToLine(lineNumber)
+{
+    const lines = editor.value.split("\n");
+    if (lineNumber > lines.length) return;
+
+    // calculate char offset to start of that line
+    let offset = 0;
+    for (let i = 0; i < lineNumber - 1; i++)
+    {
+        offset += lines[i].length + 1; // +1 for \n
+    }
+
+    // set cursor at start of target line
+    editor.focus();
+    editor.setSelectionRange(offset, offset + lines[lineNumber - 1].length);
+
+    // scroll editor so the line is vertically centered
+    const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
+    const editorHeight = editor.clientHeight;
+    const targetScrollTop = (lineNumber - 1) * lineHeight - editorHeight / 2 + lineHeight / 2;
+    editor.scrollTop = Math.max(0, targetScrollTop);
+
+    // sync highlight and gutter
+    highlight.scrollTop = editor.scrollTop;
+    gutterInner.style.transform = `translateY(-${editor.scrollTop}px)`;
+}
