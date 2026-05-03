@@ -6,17 +6,34 @@
     <style>
         body {
             font-family: sans-serif;
-            margin: 20px;
+            margin: 8px 12px;
         }
 
         .toolbar {
             display: flex;
-            gap: 10px;
+            gap: 5px;
             align-items: center;
+            padding: 4px 0;
+        }
+
+            .toolbar input, .toolbar select, .toolbar button {
+                font-size: 12px;
+                padding: 2px 6px;
+                height: 24px;
+                box-sizing: border-box;
+            }
+
+            .toolbar button {
+                cursor: pointer;
+            }
+
+        #pathInput {
+            width: 140px;
         }
 
         #fileList {
-            min-width: 250px;
+            min-width: 160px;
+            max-width: 260px;
         }
 
 
@@ -28,8 +45,10 @@
             font-family: monospace;
             font-size: 13px;
             overflow-x: auto;
+            overflow-y: auto;
             white-space: pre-wrap;
             min-height: 60px;
+            max-height: 200px;
         }
 
         .editor-wrap {
@@ -37,7 +56,7 @@
             border: 1px solid #333;
             border-radius: 4px;
             overflow: hidden;
-            margin-top: 12px;
+            margin-top: 5px;
         }
 
         #gutter {
@@ -93,28 +112,49 @@
         .highlight {
             background: #1e1e1e;
             color: #d4d4d4;
-            pointer-events: auto;
-            z-index: 2;
+            pointer-events: none;
+            z-index: 1;
             overflow: auto;
-            cursor: text;
         }
 
-        /* typing layer - hidden scrollbar, slave to highlight */
+        /* typing layer - on top, but right edge cut so highlight scrollbar shows */
         #c-editor {
             background: transparent;
             color: transparent;
             caret-color: white;
-            z-index: 1;
+            z-index: 2;
             resize: none;
             border: none;
             outline: none;
             overflow: hidden;
+            width: calc(100% - 17px);
             scrollbar-width: none;
         }
 
             #c-editor::-webkit-scrollbar {
                 display: none;
             }
+
+        /* sits over the scrollbar strip, forwards events to highlight */
+        #scrollbar-proxy {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 17px;
+            height: 100%;
+            z-index: 3;
+            cursor: default;
+        }
+
+        #scrollbar-proxy-x {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 17px;
+            width: calc(100% - 17px);
+            z-index: 3;
+            cursor: default;
+        }
         /*-------------------------------*/
 
         .kw {
@@ -162,6 +202,27 @@
             font-style: italic;
             margin-left: 8px;
         }
+
+        #editor-resize-handle {
+            height: 6px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            cursor: ns-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+            #editor-resize-handle::after {
+                content: '';
+                width: 40px;
+                height: 2px;
+                background: #555;
+                border-radius: 2px;
+            }
     </style>
 </head>
 <body>
@@ -188,12 +249,16 @@
 
             <!-- ONLY THIS TEXTAREA IS THE EDITOR -->
             <textarea id="c-editor"></textarea>
+
+            <!-- transparent proxy so the highlight scrollbar is clickable -->
+            <div id="scrollbar-proxy"></div>
+            <div id="scrollbar-proxy-x"></div>
         </div>
 
     </div>
+    <div id="editor-resize-handle"></div>
 
     <div>
-        <div class="output-title">Output</div>
         <pre id="output" class="output"></pre>
     </div>
 

@@ -89,20 +89,13 @@ async function saveFile()
 
     const content = document.getElementById("c-editor").value;
 
-    const res = await fetch(`${API}/save`, {
+    await fetch(`${API}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: currentFile + "\n" + content
-    }
-    );
+    });
 
-    // ✅ read server response (file content after save)
-    const returnedText = await res.text();
-
-    // optional: replace editor content with what server read
-    document.getElementById("c-editor").value = returnedText;
-
-    alert("Saved (verified)");
+    alert("Saved");
 }
 
 
@@ -357,19 +350,67 @@ editor.addEventListener("input", updateHighlight);
 // initialize on load
 updateHighlight();
 
-// highlight scroll drives textarea and gutter
-highlight.addEventListener("scroll", () =>
+// textarea scroll drives highlight horizontal and gutter
+editor.addEventListener("scroll", () =>
 {
-    editor.scrollTop = highlight.scrollTop;
-    editor.scrollLeft = highlight.scrollLeft;
-    gutterInner.style.transform = `translateY(-${highlight.scrollTop}px)`;
+    highlight.scrollLeft = editor.scrollLeft;
 });
 
-// clicking on highlight focuses the textarea for typing
-highlight.addEventListener("click", () =>
+// wheel on editor forwards vertical scroll to highlight/proxy
+editor.addEventListener("wheel", (e) =>
 {
-    editor.focus();
-});
+    highlight.scrollTop += e.deltaY;
+    editor.scrollTop = highlight.scrollTop;
+    gutterInner.style.transform = `translateY(-${highlight.scrollTop}px)`;
+}, { passive: true });
+
+// measure actual scrollbar width and adjust textarea to expose it
+(function adjustForScrollbar()
+{
+    const scrollbarWidth = highlight.offsetWidth - highlight.clientWidth;
+    const w = scrollbarWidth > 0 ? scrollbarWidth : 17;
+    editor.style.width = `calc(100% - ${w}px)`;
+
+    const proxy = document.getElementById("scrollbar-proxy");
+    proxy.style.width = w + "px";
+
+    // make proxy a real scrollable with same scroll height as highlight
+    // so its native scrollbar works, then sync both ways
+    const inner = document.createElement("div");
+    inner.style.height = highlight.scrollHeight + "px";
+    inner.style.width = "1px";
+    proxy.appendChild(inner);
+    proxy.style.overflowY = "scroll";
+    proxy.style.overflowX = "hidden";
+
+    let fromProxy = false;
+    let fromHighlight = false;
+
+    proxy.addEventListener("scroll", () =>
+    {
+        if (fromHighlight) return;
+        fromProxy = true;
+        highlight.scrollTop = proxy.scrollTop;
+        editor.scrollTop = proxy.scrollTop;
+        gutterInner.style.transform = `translateY(-${proxy.scrollTop}px)`;
+        fromProxy = false;
+    });
+
+    highlight.addEventListener("scroll", () =>
+    {
+        if (fromProxy) return;
+        fromHighlight = true;
+        proxy.scrollTop = highlight.scrollTop;
+        fromHighlight = false;
+    });
+
+    // keep inner height in sync when content changes
+    const mo = new MutationObserver(() =>
+    {
+        inner.style.height = highlight.scrollHeight + "px";
+    });
+    mo.observe(highlight, { childList: true, subtree: true, characterData: true });
+})();
 
 // double-click output line to jump to editor line
 document.getElementById("output").addEventListener("dblclick", (e) =>
@@ -429,13 +470,47 @@ function jumpToLine(lineNumber)
     editor.focus();
     editor.setSelectionRange(offset, offset + lines[lineNumber - 1].length);
 
-    // scroll highlight so the line is vertically centered
-    const lineHeight = parseFloat(getComputedStyle(highlight).lineHeight);
-    const viewHeight = highlight.clientHeight;
+    // scroll editor so the line is vertically centered
+    const lineHeight = parseFloat(getComputedStyle(editor).lineHeight);
+    const viewHeight = editor.clientHeight;
     const targetScrollTop = (lineNumber - 1) * lineHeight - viewHeight / 2 + lineHeight / 2;
-    highlight.scrollTop = Math.max(0, targetScrollTop);
+    editor.scrollTop = Math.max(0, targetScrollTop);
 
-    // sync textarea and gutter
-    editor.scrollTop = highlight.scrollTop;
-    gutterInner.style.transform = `translateY(-${highlight.scrollTop}px)`;
+    // sync highlight and gutter
+    highlight.scrollTop = editor.scrollTop;
+    gutterInner.style.transform = `translateY(-${editor.scrollTop}px)`;
 }
+
+// Ctrl+S to save
+document.addEventListener("keydown", (e) =>
+{
+    if (e.ctrlKey && e.key === 's')
+    {
+        e.preventDefault();
+        saveFile();
+    }
+});
+const resizeHandle = document.getElementById("editor-resize-handle");
+const editorView = document.querySelector(".editor-view");
+
+resizeHandle.addEventListener("mousedown", (e) =>
+{
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = editorView.offsetHeight;
+
+    function onMouseMove(e)
+    {
+        const newHeight = Math.max(100, startHeight + e.clientY - startY);
+        editorView.style.height = newHeight + "px";
+    }
+
+    function onMouseUp()
+    {
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+});
