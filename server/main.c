@@ -413,25 +413,49 @@ static void handle_read(SocketFd client, const char* query)
     compile_and_respond(client, full);
 }
 
+
+size_t first_line_copy(const char *src, char *dst, size_t dst_size)
+{
+    size_t i = 0;
+
+    if (!src)
+        return 0;
+
+    /* Copy up to newline or end of string */
+    while (src[i] != '\0' && src[i] != '\n')
+    {
+        if (dst && i + 1 < dst_size)  /* keep space for '\0' */
+        {
+            dst[i] = src[i];
+        }
+        i++;
+    }
+
+    /* Null-terminate if possible */
+    if (dst && dst_size > 0)
+    {
+        size_t term = (i < dst_size - 1) ? i : (dst_size - 1);
+        dst[term] = '\0';
+    }
+
+    return i; /* full length of first line (not truncated) */
+}
+
 /* ══════════════════════════════════════════════════════════════════════
    handle_save  –  POST {"path":...,"file":...,"content":...}
                    Write file, return "OK"
    ══════════════════════════════════════════════════════════════════════ */
 static void handle_save(SocketFd client, const char* body, size_t body_len)
 {
-    char path[512] = "";
     char file[512] = "";
     const char* content; size_t content_len;
-
-    if (!parse_body(body, path, file, &content, &content_len))
-    {
-        send_str(client, "text/plain", "Invalid request");
-        return;
-    }
-
+    size_t sz = first_line_copy(body, file, sizeof file);
+    content = body + sz + 1;
+    content_len = strlen(content);
+    
     char full[MAX_PATH_LEN];
-    snprintf(full, sizeof(full), "%s" PATH_SEP "%s" PATH_SEP "%s",
-        BASE_DIR2, path, file);
+    snprintf(full, sizeof(full), "%s" PATH_SEP "%s",
+        BASE_DIR2,  file);
 
     FILE* f = fopen(full, "wb");
     if (!f)
@@ -452,19 +476,16 @@ static void handle_save(SocketFd client, const char* body, size_t body_len)
    ══════════════════════════════════════════════════════════════════════ */
 static void handle_compile(SocketFd client, const char* body, size_t body_len)
 {
-    char path[512] = "";
-    char file[512] = "";
+     char file[512] = "";
     const char* content; size_t content_len;
+    size_t sz = first_line_copy(body, file, sizeof file);
+    content = body + sz + 1;
+    content_len = strlen(content);
 
-    if (!parse_body(body, path, file, &content, &content_len))
-    {
-        send_str(client, "text/plain", "Invalid request");
-        return;
-    }
 
     char full[MAX_PATH_LEN];
-    snprintf(full, sizeof(full), "%s" PATH_SEP "%s" PATH_SEP "%s",
-        BASE_DIR2, path, file);
+    snprintf(full, sizeof(full), "%s" PATH_SEP "%s",
+        BASE_DIR2, file);
 
     FILE* f = fopen(full, "wb");
     if (!f)

@@ -74,24 +74,6 @@ async function loadFile(path, file)
     document.getElementById("c-editor").value = text;
 }
 
-async function saveFile()
-{
-    if (!currentFile) return;
-
-    const content = document.getElementById("c-editor").value;
-
-    await fetch(`${API}/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            path: currentPath,
-            file: currentFile,
-            content: content
-        })
-    });
-
-    alert("Saved");
-}
 
 async function saveFile()
 {
@@ -102,12 +84,9 @@ async function saveFile()
     const res = await fetch(`${API}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            path: currentPath,
-            file: currentFile,
-            content: content
-        })
-    });
+        body: currentFile + "\n" + content
+    }
+    );
 
     // ✅ read server response (file content after save)
     const returnedText = await res.text();
@@ -116,6 +95,32 @@ async function saveFile()
     document.getElementById("c-editor").value = returnedText;
 
     alert("Saved (verified)");
+}
+
+
+async function compile()
+{
+    if (!currentFile) return;
+
+    const content = document.getElementById("c-editor").value;
+
+    const res = await fetch(`${API}/compile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: currentFile + "\n" + content
+    }
+    );
+
+    // ✅ read server response (file content after save)
+    const returnedText = await res.text();
+
+    const parts = returnedText.split(DELIM);
+
+    document.getElementById("c-editor").value = parts[0] || "";
+    highlight.innerHTML = highlightC(editor.value) + "\n";
+
+    var h = renderOutput(parts[1] || "");
+    document.getElementById("output").innerHTML = h;// = parts[1] || "";
 }
 
 const ANSI_FG = ['#4e4e4e', '#e74c3c', '#2ecc71', '#f1c40f', '#3498db', '#9b59b6', '#1abc9c', '#ecf0f1'];
