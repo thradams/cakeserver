@@ -607,6 +607,41 @@ char* get_exe_path(char* buffer, size_t size)
 #error "Unsupported platform"
 #endif
 
+// Função para obter o diretório corrente
+char* get_current_path(char path[], int sz)
+{
+
+#ifdef _WIN32
+    // Para Windows
+    if (GetCurrentDirectoryA(512, path) == 0) {
+        perror("Erro ao obter diretório atual");
+        return NULL;
+    }
+#else
+    // Para Linux e outros sistemas POSIX
+    if (getcwd(path, 512) == NULL) {
+        perror("Erro ao obter diretório atual");
+        return NULL;
+    }
+#endif
+
+    return path;
+}
+
+#ifdef _WIN32
+
+void open_browser(const char* url) {
+    ShellExecuteA(
+        NULL,           // parent window
+        "open",         // operation
+        url,            // URL to open
+        NULL,           // parameters
+        NULL,           // default directory
+        SW_SHOWNORMAL   // how to show
+    );
+}
+#endif
+
 /* ══════════════════════════════════════════════════════════════════════
    main
    ══════════════════════════════════════════════════════════════════════ */
@@ -615,17 +650,28 @@ int main(int argc, char* argv[])
 {
     if (argc <= 1)
     {
-        printf("usage: server <path>\n");
-        return 1;
+        get_current_path(BASE_DIR2, sizeof BASE_DIR2);
+    }
+    else
+    {
+       strncpy(BASE_DIR2, argv[1], sizeof(BASE_DIR2) - 1);
+       BASE_DIR2[sizeof(BASE_DIR2) - 1] = '\0'; // ensure null-termination
     }
 
+    printf("Current dir: %s\n", BASE_DIR2);
+
+
+
     get_exe_path(BASE_DIR, sizeof BASE_DIR);
+    printf("Web dir: %s\n", BASE_DIR);
+    BASE_DIR[strlen(BASE_DIR) - sizeof("server.exe")] = 0;
+
+//#define DEBUG_IDE
+#ifdef DEBUG_IDE
     BASE_DIR[strlen(BASE_DIR) - sizeof("Debug\\server.exe")] = 0;
     strcat(BASE_DIR, "\\web");
+#endif
 
-    //debug
-    strncpy(BASE_DIR2, argv[1], sizeof(BASE_DIR2) - 1);
-    BASE_DIR2[sizeof(BASE_DIR2) - 1] = '\0'; // ensure null-termination
 
 #ifdef _WIN32
     WSADATA wsa;
@@ -651,6 +697,10 @@ int main(int argc, char* argv[])
     }
     listen(server, 10);
     printf("Server running at http://localhost:%d\n", PORT);
+
+#ifdef _WIN32
+    open_browser("http://localhost:8080");
+#endif
 
     while (1)
     {
