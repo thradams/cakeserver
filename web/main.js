@@ -4,6 +4,7 @@ let currentPath = "";
 let currentFile = "";
 let lastMessages = [];   // list of { line, text } — rebuilt whenever a file loads or compiles
 let diagIndex = -1;      // index into lastMessages for Prev/Next navigation
+let isDirty = false;     // true after any edit; annotations are hidden until save/compile
 
 function setDiagMessages(messages)
 {
@@ -134,6 +135,7 @@ async function readFileFromServer(file)
     var h = renderOutput(parts[1] || "");
     document.getElementById("output").innerHTML = h;
 
+    isDirty = false;
     highlight.innerHTML = appendMessagesToLines(s, a);
     updateGutter();
 
@@ -162,6 +164,8 @@ async function saveFile()
         body: currentFile + "\n" + content
     });
 
+    isDirty = false;
+    updateHighlight();
     alert("Saved");
 }
 
@@ -188,6 +192,7 @@ async function compile()
     var s = highlightC(editor.value) + "\n";
     var a = parseCompilerLines(parts[1] || "");
     setDiagMessages(a);
+    isDirty = false;
     highlight.innerHTML = appendMessagesToLines(s, a);
     updateGutter();
 
@@ -432,12 +437,12 @@ function updateGutter()
 function updateHighlight()
 {
     var s = highlightC(editor.value) + "\n";
-    highlight.innerHTML = appendMessagesToLines(s, lastMessages);
+    highlight.innerHTML = isDirty ? s : appendMessagesToLines(s, lastMessages);
     updateGutter();
 }
 
 // update on typing
-editor.addEventListener("input", updateHighlight);
+editor.addEventListener("input", () => { isDirty = true; updateHighlight(); });
 
 // initialize on load
 updateHighlight();
