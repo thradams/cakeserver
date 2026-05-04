@@ -631,14 +631,24 @@ char* get_current_path(char path[], int sz)
 #ifdef _WIN32
 
 void open_browser(const char* url) {
+
     ShellExecuteA(
+        NULL,
+        "open",
+        "msedge.exe",
+        url,
+        NULL,
+        SW_SHOWNORMAL
+    );
+
+    /*ShellExecuteA(
         NULL,           // parent window
         "open",         // operation
         url,            // URL to open
         NULL,           // parameters
         NULL,           // default directory
         SW_SHOWNORMAL   // how to show
-    );
+    );*/
 }
 #endif
 
@@ -699,7 +709,7 @@ int main(int argc, char* argv[])
     printf("Server running at http://localhost:%d\n", PORT);
 
 #ifdef _WIN32
-    open_browser("http://localhost:8080");
+    open_browser("msedge --app=http://localhost:8080");
 #endif
 
     while (1)
