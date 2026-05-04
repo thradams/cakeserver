@@ -773,18 +773,20 @@ document.addEventListener("keydown", (e) =>
     }
 });
 const resizeHandle = document.getElementById("editor-resize-handle");
-const editorView = document.querySelector(".editor-view");
+const outputEl = document.getElementById("output");
 
 resizeHandle.addEventListener("mousedown", (e) =>
 {
     e.preventDefault();
     const startY = e.clientY;
-    const startHeight = editorView.offsetHeight;
+    const startHeight = outputEl.offsetHeight;
 
     function onMouseMove(e)
     {
-        const newHeight = Math.max(100, startHeight + e.clientY - startY);
-        editorView.style.height = newHeight + "px";
+        const delta = startY - e.clientY;  // drag up = bigger output
+        const newHeight = Math.max(40, startHeight + delta);
+        outputEl.style.flex = "none";
+        outputEl.style.height = newHeight + "px";
     }
 
     function onMouseUp()

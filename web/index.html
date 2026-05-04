@@ -4,11 +4,18 @@
     <meta charset="UTF-8">
     <title>File Browser</title>
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
         body {
             font-family: sans-serif;
-            margin: 0;
-            padding: 8px 12px;
-            padding-top: 44px; /* height of fixed toolbar */
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         .toolbar {
@@ -25,6 +32,18 @@
             border-bottom: 1px solid #ccc;
             height: 36px;
             box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        #main-content {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            padding: 8px 12px;
+            margin-top: 36px;
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
             .toolbar input, .toolbar select, .toolbar button {
@@ -54,10 +73,11 @@
             overflow-x: auto;
             overflow-y: auto;
             white-space: pre;
-            min-height: 60px;
-            max-height: 200px;
+            min-height: 40px;
+            flex: 0 0 25%;
             margin: 0;
             line-height: 1.4;
+            box-sizing: border-box;
         }
 
 
@@ -90,6 +110,8 @@
             border-radius: 4px;
             overflow: hidden;
             margin-top: 0;
+            flex: 1;
+            min-height: 0;
         }
 
         #gutter {
@@ -117,8 +139,8 @@
 
         .editor-view {
             position: relative;
-            height: 300px;
             flex: 1;
+            min-height: 0;
         }
 
         /* BOTH must match exactly */
@@ -279,25 +301,27 @@
         </span>
     </div>
 
-    <div class="editor-wrap">
+    <div id="main-content">
+        <div class="editor-wrap">
 
-        <div id="gutter"><div id="gutter-inner">1</div></div>
+            <div id="gutter"><div id="gutter-inner">1</div></div>
 
-        <div class="editor-view">
-            <pre id="highlight" class="highlight"></pre>
+            <div class="editor-view">
+                <pre id="highlight" class="highlight"></pre>
 
-            <!-- ONLY THIS TEXTAREA IS THE EDITOR -->
-            <textarea id="c-editor" spellcheck="false" autocorrect="off" autocomplete="off" autocapitalize="off"></textarea>
+                <!-- ONLY THIS TEXTAREA IS THE EDITOR -->
+                <textarea id="c-editor" spellcheck="false" autocorrect="off" autocomplete="off" autocapitalize="off"></textarea>
 
-            <!-- transparent proxy so the highlight scrollbar is clickable -->
-            <div id="scrollbar-proxy"></div>
-            <div id="scrollbar-proxy-x"></div>
+                <!-- transparent proxy so the highlight scrollbar is clickable -->
+                <div id="scrollbar-proxy"></div>
+                <div id="scrollbar-proxy-x"></div>
+            </div>
+
         </div>
+        <div id="editor-resize-handle"></div>
 
+        <pre id="output" class="output"></pre>
     </div>
-    <div id="editor-resize-handle"></div>
-
-    <pre id="output" class="output"></pre>
 
 
 
