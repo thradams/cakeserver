@@ -292,6 +292,8 @@ function appendToLine(text, targetLine, htmlToAppend)
 }
 function appendMessagesToLines(input, messages)
 {
+    const sorted = [...messages].sort((a, b) => a.line - b.line);
+
     const lines = input.split('\n');
     const result = [];
 
@@ -302,20 +304,16 @@ function appendMessagesToLines(input, messages)
         let line = lines[i];
         const currentLineNumber = i + 1;
 
-        while (
-            msgIndex < messages.length &&
-            messages[msgIndex].line === currentLineNumber
-        )
+        while (msgIndex < sorted.length && sorted[msgIndex].line === currentLineNumber)
         {
-            const msg = messages[msgIndex];
-            const text = msg.text;
+            const msg = sorted[msgIndex];
 
-            let cls = 'diag-note';
-            let icon = '● ';
-            if (/error/i.test(text)) { cls = 'diag-error'; icon = '✖ '; }
-            else if (/warning/i.test(text)) { cls = 'diag-warning'; icon = '⚠ '; }
+            let cls, icon;
+            if (msg.severity === 'error') { cls = 'diag-error'; icon = '\u2716 '; }
+            else if (msg.severity === 'warning') { cls = 'diag-warning'; icon = '\u26a0 '; }
+            else { cls = 'diag-note'; icon = '\u25cf '; }
 
-            line += `<span class="${cls}">${icon}${escHtml(text)}</span>`;
+            line += `<span class="${cls}">${icon}${escHtml(msg.text)}</span>`;
             msgIndex++;
         }
 
@@ -332,23 +330,31 @@ function stripAnsi(str)
 function parseCompilerLines(input)
 {
     const result = [];
+    const seen = new Set();
     const lines = input.split('\n');
 
     for (let i = 0; i < lines.length; i++)
     {
         const clean = stripAnsi(lines[i]);
 
-        // match: something.c:LINE:COL: message
-        const m = clean.match(/\w+\.c:(\d+):\d+:\s*(.*)/);
+        // match: file.c:LINE:COL: (warning|error|note) [optional code:] message
+        const m = clean.match(/\w+\.c:(\d+):\d+:\s*(warning|error|note)[^:]*:\s*(.*)/);
         if (!m) continue;
 
         const lineNumber = parseInt(m[1], 10);
-        const message = m[2].trim();
+        const severity = m[2].toLowerCase();   // "warning" | "error" | "note"
+        const message = m[3].trim();
 
         if (!lineNumber || !message) continue;
 
+        // deduplicate: same line + severity + message
+        const key = `${lineNumber}|${severity}|${message}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
         result.push({
             line: lineNumber,
+            severity,              // used by appendMessagesToLines and navigation
             text: message
         });
     }
