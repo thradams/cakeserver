@@ -410,17 +410,21 @@ editor.addEventListener("input", updateHighlight);
 // initialize on load
 updateHighlight();
 
-// textarea scroll drives highlight horizontal and gutter
+// textarea scroll drives highlight scroll (both axes) and gutter
 editor.addEventListener("scroll", () =>
 {
     highlight.scrollLeft = editor.scrollLeft;
+    highlight.scrollTop = editor.scrollTop;
+    gutterInner.style.transform = `translateY(-${editor.scrollTop}px)`;
 });
 
-// wheel on editor forwards vertical scroll to highlight/proxy
+// wheel on editor forwards scroll to highlight (vertical and horizontal)
 editor.addEventListener("wheel", (e) =>
 {
     highlight.scrollTop += e.deltaY;
+    highlight.scrollLeft += e.deltaX;
     editor.scrollTop = highlight.scrollTop;
+    editor.scrollLeft = highlight.scrollLeft;
     gutterInner.style.transform = `translateY(-${highlight.scrollTop}px)`;
 }, { passive: true });
 
@@ -464,10 +468,40 @@ editor.addEventListener("wheel", (e) =>
         fromHighlight = false;
     });
 
-    // keep inner height in sync when content changes
+    // horizontal scrollbar proxy
+    const proxyX = document.getElementById("scrollbar-proxy-x");
+    const innerX = document.createElement("div");
+    innerX.style.width = highlight.scrollWidth + "px";
+    innerX.style.height = "1px";
+    proxyX.appendChild(innerX);
+    proxyX.style.overflowX = "scroll";
+    proxyX.style.overflowY = "hidden";
+
+    let fromProxyX = false;
+    let fromHighlightX = false;
+
+    proxyX.addEventListener("scroll", () =>
+    {
+        if (fromHighlightX) return;
+        fromProxyX = true;
+        highlight.scrollLeft = proxyX.scrollLeft;
+        editor.scrollLeft = proxyX.scrollLeft;
+        fromProxyX = false;
+    });
+
+    highlight.addEventListener("scroll", () =>
+    {
+        if (fromProxyX) return;
+        fromHighlightX = true;
+        proxyX.scrollLeft = highlight.scrollLeft;
+        fromHighlightX = false;
+    });
+
+    // keep inner dimensions in sync when content changes
     const mo = new MutationObserver(() =>
     {
         inner.style.height = highlight.scrollHeight + "px";
+        innerX.style.width = highlight.scrollWidth + "px";
     });
     mo.observe(highlight, { childList: true, subtree: true, characterData: true });
 })();
