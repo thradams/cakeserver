@@ -11,6 +11,7 @@ function setDiagMessages(messages)
     lastMessages = messages;
     diagIndex = messages.length > 0 ? 0 : -1;
     updateDiagCounter();
+    if (typeof updateStatusDiags === "function") updateStatusDiags(messages);
 }
 
 function updateDiagCounter()
@@ -94,6 +95,9 @@ async function loadFiles()
         select.appendChild(opt);
     });
 
+    // Build IDE file tree if available
+    if (typeof buildFileTree === "function") buildFileTree(files);
+
     if (files.length > 0)
     {
         select.selectedIndex = 1;
@@ -110,6 +114,11 @@ async function onFileSelect()
 
     currentFile = file;
     document.getElementById("saveBtn").disabled = false;
+
+    // Sync IDE tab/tree/status if available
+    if (typeof ensureTab === "function") ensureTab(file);
+    if (typeof setActiveTree === "function") setActiveTree(file);
+    if (typeof updateStatusFile === "function") updateStatusFile(file);
 
     await readFileFromServer(file);
 }
@@ -171,7 +180,9 @@ async function saveFile()
 
     isDirty = false;
     updateHighlight();
-    alert("Saved");
+    if (typeof setTabDirty === "function") setTabDirty(currentFile, false);
+    if (typeof setStatus === "function") setStatus("\u2713 Saved", 3000);
+    else alert("Saved");
 }
 
 async function saveAndCompile()
@@ -759,6 +770,7 @@ function jumpToLine(lineNumber)
 window.addEventListener("load", loadFiles);
 
 // Ctrl+S to save; F8 / Shift+F8 for diag navigation
+// Ctrl+Down = next, Ctrl+Up = prev, Home = first, End = last
 document.addEventListener("keydown", (e) =>
 {
     if (e.ctrlKey && e.key === 's')
@@ -771,30 +783,54 @@ document.addEventListener("keydown", (e) =>
         e.preventDefault();
         if (e.shiftKey) diagPrev(); else diagNext();
     }
+    else if (e.ctrlKey && e.key === 'ArrowDown')
+    {
+        e.preventDefault();
+        diagNext();
+    }
+    else if (e.ctrlKey && e.key === 'ArrowUp')
+    {
+        e.preventDefault();
+        diagPrev();
+    }
+    else if (e.ctrlKey && e.key === 'Home')
+    {
+        e.preventDefault();
+        diagFirst();
+    }
+    else if (e.ctrlKey && e.key === 'End')
+    {
+        e.preventDefault();
+        diagLast();
+    }
 });
-const resizeHandle = document.getElementById("editor-resize-handle");
+const resizeHandle = document.getElementById("resize-handle");
 const outputEl = document.getElementById("output");
 
-resizeHandle.addEventListener("mousedown", (e) =>
+const panelEl = document.getElementById("panel") || outputEl;
+if (resizeHandle)
 {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startHeight = outputEl.offsetHeight;
-
-    function onMouseMove(e)
+    resizeHandle.addEventListener("mousedown", (e) =>
     {
-        const delta = startY - e.clientY;  // drag up = bigger output
-        const newHeight = Math.max(40, startHeight + delta);
-        outputEl.style.flex = "none";
-        outputEl.style.height = newHeight + "px";
-    }
+        e.preventDefault();
+        const startY = e.clientY;
+        const startHeight = panelEl.offsetHeight;
 
-    function onMouseUp()
-    {
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-    }
+        function onMouseMove(e)
+        {
+            const delta = startY - e.clientY;  // drag up = bigger panel
+            const newHeight = Math.max(50, startHeight + delta);
+            panelEl.style.flex = "none";
+            panelEl.style.height = newHeight + "px";
+        }
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-});
+        function onMouseUp()
+        {
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+        }
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+    });
+}
