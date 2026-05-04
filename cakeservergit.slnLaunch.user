@@ -4,11 +4,13 @@
     "Projects": [
       {
         "Path": "server\\server.vcxproj",
-        "Action": "Start"
+        "Action": "Start",
+        "DebugTarget": "Local Windows Debugger"
       },
       {
         "Path": "web\\web.csproj",
-        "Action": "Start"
+        "Action": "Start",
+        "DebugTarget": "Web Server (Firefox)"
       }
     ]
   }

@@ -97,11 +97,11 @@ async function loadFiles()
     if (files.length > 0)
     {
         select.selectedIndex = 1;
-        onFileSelect();
+        await onFileSelect();
     }
 }
 
-function onFileSelect()
+async function onFileSelect()
 {
     const select = document.getElementById("fileList");
     const file = select.value;
@@ -111,34 +111,39 @@ function onFileSelect()
     currentFile = file;
     document.getElementById("saveBtn").disabled = false;
 
-    readFileFromServer(file);
+    await readFileFromServer(file);
 }
 
 const DELIM = "=====CAKE-OUTPUT=====";
 
 async function readFileFromServer(file)
 {
-    const res = await fetch(
+    // 1. Read plain source
+    const readRes = await fetch(
         `${API}/read?path=${encodeURIComponent(currentPath)}&file=${encodeURIComponent(file)}`
     );
+    const text = await readRes.text();
 
-    const text = await res.text();
-
-    const parts = text.split(DELIM);
-
-    document.getElementById("c-editor").value = parts[0] || "";
-    var s = highlightC(editor.value) + "\n";
-
-    var a = parseCompilerLines(parts[1] || "");
-    setDiagMessages(a);
-
-    var h = renderOutput(parts[1] || "");
-    document.getElementById("output").innerHTML = h;
-
+    document.getElementById("c-editor").value = text;
     isDirty = false;
-    highlight.innerHTML = appendMessagesToLines(s, a);
+    highlight.innerHTML = highlightC(editor.value) + "\n";
     updateGutter();
 
+    // 2. Compile the file as-is on disk
+    const compRes = await fetch(`${API}/compile`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: file
+    });
+    const output = await compRes.text();
+
+    var a = parseCompilerLines(output);
+    setDiagMessages(a);
+
+    var s = highlightC(editor.value) + "\n";
+    highlight.innerHTML = appendMessagesToLines(s, a);
+
+    document.getElementById("output").innerHTML = renderOutput(output);
 }
 
 async function loadFile(path, file)
@@ -160,7 +165,7 @@ async function saveFile()
 
     await fetch(`${API}/save`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: currentFile + "\n" + content
     });
 
@@ -169,35 +174,53 @@ async function saveFile()
     alert("Saved");
 }
 
-
-async function compile()
+async function saveAndCompile()
 {
     if (!currentFile) return;
 
     const content = document.getElementById("c-editor").value;
 
-    const res = await fetch(`${API}/compile`, {
+    const res = await fetch(`${API}/savecompile`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: currentFile + "\n" + content
-    }
-    );
+    });
 
-    // ✅ read server response (file content after save)
-    const returnedText = await res.text();
+    const output = await res.text();
 
-    const parts = returnedText.split(DELIM);
-
-    document.getElementById("c-editor").value = parts[0] || "";
-    var s = highlightC(editor.value) + "\n";
-    var a = parseCompilerLines(parts[1] || "");
+    var a = parseCompilerLines(output);
     setDiagMessages(a);
+
+    var s = highlightC(editor.value) + "\n";
     isDirty = false;
     highlight.innerHTML = appendMessagesToLines(s, a);
     updateGutter();
 
-    var h = renderOutput(parts[1] || "");
-    document.getElementById("output").innerHTML = h;
+    document.getElementById("output").innerHTML = renderOutput(output);
+}
+
+
+async function compile()
+{
+    if (!currentFile) return;
+
+    const res = await fetch(`${API}/compile`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: currentFile
+    });
+
+    const output = await res.text();
+
+    var a = parseCompilerLines(output);
+    setDiagMessages(a);
+
+    var s = highlightC(editor.value) + "\n";
+    isDirty = false;
+    highlight.innerHTML = appendMessagesToLines(s, a);
+    updateGutter();
+
+    document.getElementById("output").innerHTML = renderOutput(output);
 }
 
 const ANSI_FG = ['#4e4e4e', '#e74c3c', '#2ecc71', '#f1c40f', '#3498db', '#9b59b6', '#1abc9c', '#ecf0f1'];
@@ -399,26 +422,166 @@ function parseCompilerLines(input)
     return result;
 }
 
+const KW_SPECIAL = new Set([
+    "_Opt", "_Owner", "_View", "_Dtor", "_Ctor"
+]);
+
+const KW = new Set([
+    // types
+    "void", "char", "short", "int", "long", "float", "double", "signed", "unsigned",
+    "bool", "_Bool", "_Complex", "_Imaginary", "_BitInt", "_Decimal32", "_Decimal64", "_Decimal128",
+    // type qualifiers
+    "const", "volatile", "restrict", "_Atomic",
+    // storage class
+    "auto", "extern", "register", "static", "typedef", "inline", "_Thread_local",
+    // control flow
+    "if", "else", "for", "while", "do", "switch", "case", "default", "break", "continue", "return", "goto",
+    // structure
+    "struct", "union", "enum",
+    // operators/expressions
+    "sizeof", "alignof", "_Alignof", "typeof", "typeof_unqual",
+    // alignment
+    "alignas", "_Alignas",
+    // static assert
+    "static_assert", "_Static_assert",
+    // noreturn
+    "noreturn", "_Noreturn",
+    // generic
+    "_Generic",
+    // thread
+    "_Thread_local",
+    // nullptr
+    "nullptr",
+    // constexpr (C23)
+    "constexpr",
+    // common constants
+    "NULL", "true", "false"
+]);
+
 function highlightC(code)
 {
-    code = escHtml(code);
+    const out = [];
+    const n = code.length;
+    let i = 0;
 
+    // emit plain text with HTML escaping
+    function flush(start, end)
+    {
+        for (let j = start; j < end; j++)
+        {
+            const c = code[j];
+            if (c === '&') out.push('&amp;');
+            else if (c === '<') out.push('&lt;');
+            else if (c === '>') out.push('&gt;');
+            else out.push(c);
+        }
+    }
 
-    // strings
-    code = code.replace(/("(?:\\.|[^"])*")/g, '<span class="str">$1</span>');
+    function span(cls, start, end)
+    {
+        out.push('<span class="', cls, '">');
+        flush(start, end);
+        out.push('</span>');
+    }
 
-    // comments
-    code = code.replace(/(\/\/.*)/g, '<span class="com">$1</span>');
-    code = code.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="com">$1</span>');
+    while (i < n)
+    {
+        const c = code[i];
 
-    // keywords
-    const kw = /\b(int|char|return|if|else|for|while|void|struct|typedef|const|static)\b/g;
-    code = code.replace(kw, '<span class="kw">$1</span>');
+        // line comment  //
+        if (c === '/' && code[i + 1] === '/')
+        {
+            const start = i;
+            while (i < n && code[i] !== '\n') i++;
+            span('com', start, i);
+            continue;
+        }
 
-    // numbers
-    code = code.replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
-    //code = appendToLine(code, 10, "<span style=\"background-color:yellow\">TEST</span>");
-    return code;
+        // block comment  /* */
+        if (c === '/' && code[i + 1] === '*')
+        {
+            const start = i;
+            i += 2;
+            while (i < n && !(code[i - 1] === '*' && code[i] === '/')) i++;
+            if (i < n) i++; // consume closing /
+            span('com', start, i);
+            continue;
+        }
+
+        // string literal  "..."
+        if (c === '"')
+        {
+            const start = i++;
+            while (i < n && code[i] !== '"')
+            {
+                if (code[i] === '\\') i++; // skip escape
+                i++;
+            }
+            if (i < n) i++; // closing "
+            span('str', start, i);
+            continue;
+        }
+
+        // char literal  '.'
+        if (c === '\'')
+        {
+            const start = i++;
+            while (i < n && code[i] !== '\'')
+            {
+                if (code[i] === '\\') i++;
+                i++;
+            }
+            if (i < n) i++;
+            span('str', start, i);
+            continue;
+        }
+
+        // preprocessor directive  #... whole line
+        if (c === '#')
+        {
+            const start = i;
+            while (i < n && code[i] !== '\n') i++;
+            span('kw', start, i);
+            continue;
+        }
+
+        // number  (starts with digit, or . followed by digit)
+        if (c >= '0' && c <= '9')
+        {
+            const start = i++;
+            while (i < n && (
+                (code[i] >= '0' && code[i] <= '9') ||
+                (code[i] >= 'a' && code[i] <= 'f') ||
+                (code[i] >= 'A' && code[i] <= 'F') ||
+                code[i] === 'x' || code[i] === 'X' ||
+                code[i] === '.' || code[i] === 'u' ||
+                code[i] === 'U' || code[i] === 'l' || code[i] === 'L'
+            )) i++;
+            span('num', start, i);
+            continue;
+        }
+
+        // identifier or keyword
+        if (c === '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+        {
+            const start = i++;
+            while (i < n && (code[i] === '_' || (code[i] >= 'a' && code[i] <= 'z') || (code[i] >= 'A' && code[i] <= 'Z') || (code[i] >= '0' && code[i] <= '9'))) i++;
+            const word = code.slice(start, i);
+            if (KW.has(word))
+                span('kw', start, i);
+            else if (KW_SPECIAL.has(word))
+                span('com', start, i);
+            else
+                flush(start, i);
+            continue;
+        }
+
+        // anything else — emit as-is
+        flush(i, i + 1);
+        i++;
+    }
+
+    return out.join('');
 }
 
 const editor = document.getElementById("c-editor");
@@ -601,7 +764,7 @@ document.addEventListener("keydown", (e) =>
     if (e.ctrlKey && e.key === 's')
     {
         e.preventDefault();
-        saveFile();
+        saveAndCompile();
     }
     else if (e.key === 'F8')
     {
