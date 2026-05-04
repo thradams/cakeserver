@@ -652,9 +652,19 @@ function scheduleHighlight()
 // update on typing
 editor.addEventListener("input", () => { isDirty = true; scheduleHighlight(); });
 
-// ── Tab key → insert spaces, don't lose focus ────────────────
+// ── Tab key → insert spaces; Arrow keys → skip highlight ─────
+const ARROW_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
 editor.addEventListener("keydown", (e) =>
 {
+    // Arrow keys never change content — cancel any queued highlight
+    // so navigation feels instant with no deferred DOM churn.
+    if (ARROW_KEYS.has(e.key))
+    {
+        clearTimeout(_highlightTimer);
+        return;
+    }
+
     if (e.key !== "Tab") return;
     e.preventDefault();
     const start = editor.selectionStart;
