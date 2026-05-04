@@ -24,6 +24,19 @@ function updateDiagCounter()
     {
         counter.textContent = `${diagIndex + 1}/${lastMessages.length}`;
     }
+
+    // sync selected highlight in output panel
+    document.querySelectorAll(".output-diag.selected").forEach(el => el.classList.remove("selected"));
+    if (diagIndex >= 0 && diagIndex < lastMessages.length)
+    {
+        const targetLine = lastMessages[diagIndex].line;
+        const el = document.querySelector(`.output-diag[data-line="${targetLine}"]`);
+        if (el)
+        {
+            el.classList.add("selected");
+            el.scrollIntoView({ block: "nearest" });
+        }
+    }
 }
 
 function diagNext()
@@ -193,64 +206,83 @@ function escHtml(s)
 
 function renderOutput(text)
 {
-    let fg = null, bg = null, bold = false, dim = false, italic = false, underline = false;
-    let html = '';
-    const re = /\[([0-9;]*)m/g;
-    let last = 0, m;
-
-    function openSpan()
+    // render one raw ANSI line into an HTML string
+    function renderLine(raw)
     {
-        const styles = [];
-        if (bold) styles.push('font-weight:bold');
-        if (dim) styles.push('opacity:0.5');
-        if (italic) styles.push('font-style:italic');
-        if (underline) styles.push('text-decoration:underline');
-        if (fg) styles.push('color:' + fg);
-        if (bg) styles.push('background:' + bg);
-        if (styles.length) html += '<span style="' + styles.join(';') + "\">";
-        return styles.length > 0;
-    }
+        let fg = null, bg = null, bold = false, dim = false, italic = false, underline = false;
+        let html = '';
+        const re = /\x1b\[([0-9;]*)m/g;
+        let last = 0, m;
 
-    function applyCode(c)
-    {
-        if (c === 0) { fg = bg = null; bold = dim = italic = underline = false; }
-        else if (c === 1) bold = true;
-        else if (c === 2) dim = true;
-        else if (c === 3) italic = true;
-        else if (c === 4) underline = true;
-        else if (c === 22) { bold = false; dim = false; }
-        else if (c === 23) italic = false;
-        else if (c === 24) underline = false;
-        else if (c >= 30 && c <= 37) fg = ANSI_FG[c - 30];
-        else if (c === 39) fg = null;
-        else if (c >= 40 && c <= 47) bg = ANSI_BG[c - 40];
-        else if (c === 49) bg = null;
-        else if (c >= 90 && c <= 97) fg = ANSI_FG_BRIGHT[c - 90];
-        else if (c >= 100 && c <= 107) bg = ANSI_FG_BRIGHT[c - 100];
-    }
-
-    while ((m = re.exec(text)) !== null)
-    {
-        const plain = text.slice(last, m.index);
-        if (plain)
+        function openSpan()
         {
-            const hasSpan = openSpan();
-            html += escHtml(plain);
-            if (hasSpan) html += '</span>';
+            const styles = [];
+            if (bold) styles.push('font-weight:bold');
+            if (dim) styles.push('opacity:0.5');
+            if (italic) styles.push('font-style:italic');
+            if (underline) styles.push('text-decoration:underline');
+            if (fg) styles.push('color:' + fg);
+            if (bg) styles.push('background:' + bg);
+            if (styles.length) html += '<span style="' + styles.join(';') + '">';
+            return styles.length > 0;
         }
-        last = m.index + m[0].length;
-        (m[1] === '' ? [0] : m[1].split(';').map(Number)).forEach(applyCode);
+
+        function applyCode(c)
+        {
+            if (c === 0) { fg = bg = null; bold = dim = italic = underline = false; }
+            else if (c === 1) bold = true;
+            else if (c === 2) dim = true;
+            else if (c === 3) italic = true;
+            else if (c === 4) underline = true;
+            else if (c === 22) { bold = false; dim = false; }
+            else if (c === 23) italic = false;
+            else if (c === 24) underline = false;
+            else if (c >= 30 && c <= 37) fg = ANSI_FG[c - 30];
+            else if (c === 39) fg = null;
+            else if (c >= 40 && c <= 47) bg = ANSI_BG[c - 40];
+            else if (c === 49) bg = null;
+            else if (c >= 90 && c <= 97) fg = ANSI_FG_BRIGHT[c - 90];
+            else if (c >= 100 && c <= 107) bg = ANSI_FG_BRIGHT[c - 100];
+        }
+
+        while ((m = re.exec(raw)) !== null)
+        {
+            const plain = raw.slice(last, m.index);
+            if (plain) { const h = openSpan(); html += escHtml(plain); if (h) html += '</span>'; }
+            last = m.index + m[0].length;
+            (m[1] === '' ? [0] : m[1].split(';').map(Number)).forEach(applyCode);
+        }
+
+        const tail = raw.slice(last);
+        if (tail) { const h = openSpan(); html += escHtml(tail); if (h) html += '</span>'; }
+
+        return html;
     }
 
-    const tail = text.slice(last);
-    if (tail)
+    // split into raw lines, wrap every line in a span so CSS can target blank ones
+    const rawLines = text.split('\n');
+    let html = '';
+
+    for (const raw of rawLines)
     {
-        const hasSpan = openSpan();
-        html += escHtml(tail);
-        if (hasSpan) html += '</span>';
+        const stripped = raw.replace(/\x1b\[[0-9;]*m/g, '').trim();
+
+        if (!stripped) continue;
+
+        const diagMatch = stripped.match(/\w+\.c:(\d+):\d+:\s*(warning|error|note)/);
+
+        if (diagMatch)
+        {
+            const lineNum = parseInt(diagMatch[1], 10);
+            html += `<span class="output-line output-diag" data-line="${lineNum}" onclick="outputDiagClick(this)">${renderLine(raw)}</span>`;
+        }
+        else
+        {
+            html += `<span class="output-line">${renderLine(raw)}</span>`;
+        }
     }
+
     return html;
-    //document.getElementById('output').innerHTML = html;
 }
 function appendToLine(text, targetLine, htmlToAppend)
 {
@@ -506,47 +538,27 @@ editor.addEventListener("wheel", (e) =>
     mo.observe(highlight, { childList: true, subtree: true, characterData: true });
 })();
 
-// double-click output line to jump to editor line
-document.getElementById("output").addEventListener("dblclick", (e) =>
+// click a diagnostic line in the output panel
+function outputDiagClick(el)
 {
-    // get the full text line that was clicked using mouse position
-    const output = document.getElementById("output");
-    const fullText = output.innerText;
-    const lines = fullText.split('\n');
+    // clear previous selection
+    const prev = document.querySelector(".output-diag.selected");
+    if (prev) prev.classList.remove("selected");
+    el.classList.add("selected");
 
-    // find which line was clicked by using caret position from mouse coords
-    let clickedLine = null;
-
-    const range = document.caretRangeFromPoint
-        ? document.caretRangeFromPoint(e.clientX, e.clientY)
-        : null;
-
-    if (range)
-    {
-        // count newlines before the caret offset to find the line index
-        const pre = document.createRange();
-        pre.setStart(output, 0);
-        pre.setEnd(range.startContainer, range.startOffset);
-        const textBefore = pre.toString();
-        const lineIndex = textBefore.split('\n').length - 1;
-        clickedLine = lines[lineIndex] || "";
-    }
-    else
-    {
-        // fallback: use selection
-        const sel = window.getSelection();
-        const node = sel && sel.anchorNode;
-        clickedLine = node ? (node.textContent || "") : "";
-    }
-
-    const match = clickedLine.match(/\.c:(\d+):/);
-    if (!match) return;
-
-    const targetLine = parseInt(match[1], 10);
+    const targetLine = parseInt(el.dataset.line, 10);
     if (!targetLine || targetLine < 1) return;
 
+    // sync diagIndex to the matching entry in lastMessages
+    const idx = lastMessages.findIndex(m => m.line === targetLine);
+    if (idx !== -1)
+    {
+        diagIndex = idx;
+        updateDiagCounter();
+    }
+
     jumpToLine(targetLine);
-});
+}
 
 function jumpToLine(lineNumber)
 {

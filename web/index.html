@@ -53,11 +53,36 @@
             font-size: 13px;
             overflow-x: auto;
             overflow-y: auto;
-            white-space: pre-wrap;
+            white-space: pre;
             min-height: 60px;
             max-height: 200px;
             margin: 0;
+            line-height: 1.4;
         }
+
+
+
+        .output-line {
+            display: block;
+        }
+
+        .output-diag {
+            display: block;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            padding-left: 4px;
+            margin-left: -4px;
+        }
+
+            .output-diag:hover {
+                background: rgba(255,255,255,0.05);
+                border-left-color: #555;
+            }
+
+            .output-diag.selected {
+                background: rgba(86, 156, 214, 0.15);
+                border-left-color: #569cd6;
+            }
 
         .editor-wrap {
             display: flex;
