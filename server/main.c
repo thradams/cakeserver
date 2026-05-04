@@ -674,12 +674,14 @@ int main(int argc, char* argv[])
 
     get_exe_path(BASE_DIR, sizeof BASE_DIR);
     printf("Web dir: %s\n", BASE_DIR);
-    BASE_DIR[strlen(BASE_DIR) - sizeof("server.exe")] = 0;
 
-//#define DEBUG_IDE
+#define DEBUG_IDE
 #ifdef DEBUG_IDE
     BASE_DIR[strlen(BASE_DIR) - sizeof("Debug\\server.exe")] = 0;
     strcat(BASE_DIR, "\\web");
+#else
+        BASE_DIR[strlen(BASE_DIR) - sizeof("server.exe")] = 0;
+
 #endif
 
 
@@ -708,7 +710,7 @@ int main(int argc, char* argv[])
     listen(server, 10);
     printf("Server running at http://localhost:%d\n", PORT);
 
-#ifdef _WIN32
+#if !defined DEBUG_IDE && defined _WIN32
     open_browser("msedge --app=http://localhost:8080");
 #endif
 

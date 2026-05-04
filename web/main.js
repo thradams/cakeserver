@@ -615,8 +615,55 @@ function updateHighlight()
     updateGutter();
 }
 
+// ── Debounced highlight ───────────────────────────────────────
+// Syntax highlighting is expensive — skip it while the user is actively
+// typing fast and only flush after 80 ms of silence.  The gutter only
+// needs rebuilding when the number of lines changes, so we track that
+// separately to avoid the heavy split("\n") on every keystroke.
+
+let _highlightTimer = null;
+let _highlightPending = false;
+let _lastLineCount = editor.value.split("\n").length;
+
+function scheduleHighlight()
+{
+    if (_highlightPending) return;          // one rAF already queued
+    clearTimeout(_highlightTimer);
+    _highlightTimer = setTimeout(() =>
+    {
+        _highlightPending = true;
+        requestAnimationFrame(() =>
+        {
+            _highlightPending = false;
+            var s = highlightC(editor.value) + "\n";
+            highlight.innerHTML = isDirty ? s : appendMessagesToLines(s, lastMessages);
+
+            // only rebuild gutter when line count actually changes
+            const newCount = editor.value.split("\n").length;
+            if (newCount !== _lastLineCount)
+            {
+                _lastLineCount = newCount;
+                updateGutter();
+            }
+        });
+    }, 80);
+}
+
 // update on typing
-editor.addEventListener("input", () => { isDirty = true; updateHighlight(); });
+editor.addEventListener("input", () => { isDirty = true; scheduleHighlight(); });
+
+// ── Tab key → insert spaces, don't lose focus ────────────────
+editor.addEventListener("keydown", (e) =>
+{
+    if (e.key !== "Tab") return;
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.slice(0, start) + "    " + editor.value.slice(end);
+    editor.selectionStart = editor.selectionEnd = start + 4;
+    isDirty = true;
+    scheduleHighlight();
+});
 
 // initialize on load
 updateHighlight();
